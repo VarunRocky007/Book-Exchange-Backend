@@ -1,0 +1,16 @@
+services:
+  mongodb:
+    container_name: mongodb_2
+    image: mongodb/mongodb-community-server:5.0.20-ubi8
+    restart: always
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=user
+      - MONGO_INITDB_ROOT_PASSWORD=user
+      - MONGO_INITDB_DATABASE=bookExchangeDB
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./volumes/mongo/mongoscript/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+
+volumes:
+  postgres_data:

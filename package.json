@@ -1,0 +1,17 @@
+{
+  "name": "book_exchange_platform",
+  "version": "1.0.0",
+  "description": "A platform that enables users to exchange books",
+  "main": "app.js",
+  "scripts": {
+    "start": "nodemon server.js"
+  },
+  "author": "Varun S",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^7.0.0",
+    "express": "^4.21.1",
+    "mongoose": "^5.13.22",
+    "validator": "^10.11.0"
+  }
+}
