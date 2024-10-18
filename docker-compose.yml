@@ -1,6 +1,6 @@
 services:
   mongodb:
-    container_name: mongodb_2
+    container_name: mongodb_latest
     image: mongodb/mongodb-community-server:5.0.20-ubi8
     restart: always
     environment:
