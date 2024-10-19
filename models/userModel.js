@@ -20,12 +20,12 @@ const userSchema = new mongoose.Schema({
     minlength: 8,
     select: false,
   },
-  passwordConfirm: {
+  confirmPassword: {
     type: String,
     required: [true, "This is a required field"],
     validate: {
-      validator: function (el) {
-        return el === this.password;
+      validator: function (confirmPassword) {
+        return confirmPassword === this.password;
       },
       message: "Passwords are not the same!",
     },
@@ -35,7 +35,7 @@ const userSchema = new mongoose.Schema({
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
   this.password = await byCrypt.hash(this.password, 12);
-  this.passwordConfirm = undefined;
+  this.confirmPassword = undefined;
   next();
 });
 
