@@ -1,10 +1,35 @@
 const User = require("../models/userModel");
 const catchAsync = require("../utils/catchAsync");
+const {promisify} = require("util");
 const jwt = require("jsonwebtoken");
 const GenericError = require("../utils/genericError");
 const sendEmail = require("../utils/email");
 const otpEmailTemplate = require("../utils/otpEmailTemplate");
 const Otp = require("../models/otpModel");
+
+exports.authentication = catchAsync(async (req,res,next) => {
+  let token;
+  if(req.headers.authorization &&
+    req.headers.authorization.startsWith('Bearer')
+  ) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+  if(!token) {
+    return next(new GenericError("Unauthorized access!",401));
+  }
+  const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
+  const user = await User.findById(decoded.id);
+  if(!user) {
+    return next(new GenericError("Invalid token!",401));
+  }
+  if(user.checkPasswordChangeTime(decoded.iat)) {
+    return next(
+      new GenericError("Invalid Session!",401)
+    );
+  }
+  req.user = user;
+  next();
+});
 
 exports.signup = catchAsync(async (req, res) => {
   const newUser = await User.create({
@@ -74,7 +99,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.updatePasswordUsingOtp = catchAsync(async (req, res, next) => {
+exports.resetPasswordUsingOtp = catchAsync(async (req, res, next) => {
   const otpId = req.body.otpId;
   const otp = req.body.otp;
   const newPassword = req.body.password;
@@ -97,6 +122,31 @@ exports.updatePasswordUsingOtp = catchAsync(async (req, res, next) => {
   user.confirmPassword = newConfirmPassword;
   await user.save();
   await otpModel.delete();
+  res.status(200).json({
+    status: "success",
+    data: {},
+    message : "Password changed Successfully!"
+  });
+});
+
+exports.updatePassword = catchAsync(async (req, res, next) => {
+  const currentPassword = req.body.currentPassword;
+  const newPassword = req.body.newPassword;
+  const newConfirmPassword = req.body.newConfirmPassword;
+  if(!currentPassword || !newConfirmPassword || !newPassword) {
+    return next(new GenericError("Invalid request body", 400));
+  }
+  const currentUser = await User.findById(req.user._id).select("+password");
+  const isCorrectPassword = await currentUser.checkPassword(currentPassword, currentUser.password);
+  
+  if(!isCorrectPassword) {
+    return next(new GenericError("The current password is incorrect", 400));
+  }
+  currentUser.password = newPassword;
+  currentUser.confirmPassword = newConfirmPassword;
+
+  await currentUser.save();
+
   res.status(200).json({
     status: "success",
     data: {},

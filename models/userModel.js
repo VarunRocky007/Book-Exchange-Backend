@@ -33,12 +33,19 @@ const userSchema = new mongoose.Schema({
     },
   },
   passwordResetOtpId: String,
+  passwordChangedAt: Date,
 });
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
   this.password = await byCrypt.hash(this.password, 12);
   this.confirmPassword = undefined;
+  next();
+});
+
+userSchema.pre('save',function(next) {
+  if(!this.isModified('password') || this.isNew) return next();
+  this.passwordChangedAt = Date.now();
   next();
 });
 
@@ -64,6 +71,17 @@ userSchema.methods.createResetPasswordOtp = async function () {
     otp: resetOtp,
     otpId: this.passwordResetOtpId,
   };
+};
+
+userSchema.methods.checkPasswordChangeTime = function(JWTTimestamp) {
+  if(this.passwordChangedAt) {
+    const changeTimeStamp = parseInt(
+      this.passwordChangedAt.getTime()/1000,
+      10
+    );
+    return JWTTimestamp < changeTimeStamp;
+  }
+  return false;
 };
 
 const User = mongoose.model("User", userSchema);
