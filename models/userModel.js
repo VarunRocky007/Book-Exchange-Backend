@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
 const validator = require("validator");
 const byCrypt = require("bcryptjs");
+const otpGenerator = require('otp-generator');
+const Otp = require("./otpModel");
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -30,6 +32,7 @@ const userSchema = new mongoose.Schema({
       message: "Passwords are not the same!",
     },
   },
+  passwordResetOtpId: String,
 });
 
 userSchema.pre("save", async function (next) {
@@ -44,6 +47,23 @@ userSchema.methods.checkPassword = async function (
   userPassword
 ) {
   return await byCrypt.compare(presentPassword, userPassword);
+};
+
+userSchema.methods.createResetPasswordOtp = async function () {
+  const resetOtp = otpGenerator.generate(6, { upperCaseAlphabets: false, specialChars: false });
+  if (this.passwordResetOtpId != null) {
+    await Otp.findByIdAndDelete(this.passwordResetOtpId);
+  }
+
+  const newOtpModel = await Otp.create({
+    otp: await byCrypt.hash(resetOtp, 10),
+    userEmail: this.email
+  });
+  this.passwordResetOtpId = newOtpModel._id;
+  return {
+    otp: resetOtp,
+    otpId: this.passwordResetOtpId,
+  };
 };
 
 const User = mongoose.model("User", userSchema);
