@@ -16,6 +16,7 @@
     "mongoose": "^5.13.22",
     "nodemailer": "^6.9.15",
     "otp-generator": "^4.0.1",
+    "uuid": "^10.0.0",
     "validator": "^10.11.0"
   }
 }

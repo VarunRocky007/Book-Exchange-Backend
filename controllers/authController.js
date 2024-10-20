@@ -6,6 +6,8 @@ const GenericError = require("../utils/genericError");
 const sendEmail = require("../utils/email");
 const otpEmailTemplate = require("../utils/otpEmailTemplate");
 const Otp = require("../models/otpModel");
+const {v4: uuidv4} = require("uuid");
+const byCrypt = require("bcryptjs");
 
 exports.authentication = catchAsync(async (req,res,next) => {
   let token;
@@ -99,12 +101,10 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.resetPasswordUsingOtp = catchAsync(async (req, res, next) => {
+exports.verifyOtp = catchAsync(async (req,res,next) => {
   const otpId = req.body.otpId;
   const otp = req.body.otp;
-  const newPassword = req.body.password;
-  const newConfirmPassword = req.body.confirmPassword;
-  if(!otp || !otpId || !newPassword || !newConfirmPassword) {
+  if(!otp || !otpId) {
     return next(new GenericError("Invalid request body", 400));
   }
   const otpModel = await Otp.findById(otpId);
@@ -114,6 +114,34 @@ exports.resetPasswordUsingOtp = catchAsync(async (req, res, next) => {
   const isOtpValid = otpModel.checkOtp(otp,otpModel.otp);
   if(!isOtpValid) {
     return next(new GenericError("Otp is invalid",400));
+  }
+  const verifiedToken = uuidv4();
+  otpModel.otpVerifiedToken = await byCrypt.hash(verifiedToken,12);
+  await otpModel.save();
+  res.status(200).json({
+    status: "success",
+    data: {
+      verifyToken: verifiedToken
+    },
+    message : "Otp verified Successfully!"
+  });
+});
+
+exports.resetPasswordUsingOtp = catchAsync(async (req, res, next) => {
+  const otpId = req.body.otpId;
+  const verifyToken = req.body.verifyToken;
+  const newPassword = req.body.password;
+  const newConfirmPassword = req.body.confirmPassword;
+  if(!verifyToken || !otpId || !newPassword || !newConfirmPassword) {
+    return next(new GenericError("Invalid request body", 400));
+  }
+  const otpModel = await Otp.findById(otpId);
+  if(!otpModel) {
+    return next(new GenericError("Unable to verify otp, Either the request is invalid or otp has been expired",400));
+  }
+  const isOtpVerified = otpModel.checkVerifyToken(verifyToken,otpModel.otpVerifiedToken);
+  if(!isOtpVerified) {
+    return next(new GenericError("Otp is not verified",400));
   }
   const user = await User.findOne({
     email: otpModel.userEmail
