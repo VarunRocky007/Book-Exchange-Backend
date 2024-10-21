@@ -1,33 +1,32 @@
 const User = require("../models/userModel");
 const catchAsync = require("../utils/catchAsync");
-const {promisify} = require("util");
+const { promisify } = require("util");
 const jwt = require("jsonwebtoken");
 const GenericError = require("../utils/genericError");
 const sendEmail = require("../utils/email");
 const otpEmailTemplate = require("../utils/otpEmailTemplate");
 const Otp = require("../models/otpModel");
-const {v4: uuidv4} = require("uuid");
+const { v4: uuidv4 } = require("uuid");
 const byCrypt = require("bcryptjs");
 
-exports.authentication = catchAsync(async (req,res,next) => {
+exports.authentication = catchAsync(async (req, res, next) => {
   let token;
-  if(req.headers.authorization &&
-    req.headers.authorization.startsWith('Bearer')
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
   ) {
-    token = req.headers.authorization.split(' ')[1];
+    token = req.headers.authorization.split(" ")[1];
   }
-  if(!token) {
-    return next(new GenericError("Unauthorized access!",401));
+  if (!token) {
+    return next(new GenericError("Unauthorized access!", 401));
   }
   const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
   const user = await User.findById(decoded.id);
-  if(!user) {
-    return next(new GenericError("Invalid token!",401));
+  if (!user) {
+    return next(new GenericError("Invalid token!", 401));
   }
-  if(user.checkPasswordChangeTime(decoded.iat)) {
-    return next(
-      new GenericError("Invalid Session!",401)
-    );
+  if (user.checkPasswordChangeTime(decoded.iat)) {
+    return next(new GenericError("Invalid Session!", 401));
   }
   req.user = user;
   next();
@@ -48,9 +47,6 @@ exports.signup = catchAsync(async (req, res) => {
   res.status(201).json({
     status: "success",
     token: token,
-    data: {
-      user: newUser,
-    },
   });
 });
 
@@ -79,51 +75,58 @@ exports.login = catchAsync(async (req, res, next) => {
 });
 
 exports.forgotPassword = catchAsync(async (req, res, next) => {
-  const user = await User.findOne({email:req.body.email});
-  if(!user) {
-    return next(new GenericError("Could not find an account with this email!",404));
+  const user = await User.findOne({ email: req.body.email });
+  if (!user) {
+    return next(
+      new GenericError("Could not find an account with this email!", 404)
+    );
   }
 
   const otpModel = await user.createResetPasswordOtp();
-  await user.save({validateBeforeSave: false});
+  await user.save({ validateBeforeSave: false });
 
   await sendEmail({
-    email : user.email,
+    email: user.email,
     subject: "Password Reset Request for Book Exchange Platform",
-    html: otpEmailTemplate(otpModel.otp)
+    html: otpEmailTemplate(otpModel.otp),
   });
 
   res.status(200).json({
     status: "success",
     data: {
-      otpId : otpModel.otpId
-    }
+      otpId: otpModel.otpId,
+    },
   });
 });
 
-exports.verifyOtp = catchAsync(async (req,res,next) => {
+exports.verifyOtp = catchAsync(async (req, res, next) => {
   const otpId = req.body.otpId;
   const otp = req.body.otp;
-  if(!otp || !otpId) {
+  if (!otp || !otpId) {
     return next(new GenericError("Invalid request body", 400));
   }
   const otpModel = await Otp.findById(otpId);
-  if(!otpModel) {
-    return next(new GenericError("Unable to verify otp, Either the request is invalid or otp has been expired",400));
+  if (!otpModel) {
+    return next(
+      new GenericError(
+        "Unable to verify otp, Either the request is invalid or otp has been expired",
+        400
+      )
+    );
   }
-  const isOtpValid = otpModel.checkOtp(otp,otpModel.otp);
-  if(!isOtpValid) {
-    return next(new GenericError("Otp is invalid",400));
+  const isOtpValid = otpModel.checkOtp(otp, otpModel.otp);
+  if (!isOtpValid) {
+    return next(new GenericError("Otp is invalid", 400));
   }
   const verifiedToken = uuidv4();
-  otpModel.otpVerifiedToken = await byCrypt.hash(verifiedToken,12);
+  otpModel.otpVerifiedToken = await byCrypt.hash(verifiedToken, 12);
   await otpModel.save();
   res.status(200).json({
     status: "success",
     data: {
-      verifyToken: verifiedToken
+      verifyToken: verifiedToken,
     },
-    message : "Otp verified Successfully!"
+    message: "Otp verified Successfully!",
   });
 });
 
@@ -132,19 +135,27 @@ exports.resetPasswordUsingOtp = catchAsync(async (req, res, next) => {
   const verifyToken = req.body.verifyToken;
   const newPassword = req.body.password;
   const newConfirmPassword = req.body.confirmPassword;
-  if(!verifyToken || !otpId || !newPassword || !newConfirmPassword) {
+  if (!verifyToken || !otpId || !newPassword || !newConfirmPassword) {
     return next(new GenericError("Invalid request body", 400));
   }
   const otpModel = await Otp.findById(otpId);
-  if(!otpModel) {
-    return next(new GenericError("Unable to verify otp, Either the request is invalid or otp has been expired",400));
+  if (!otpModel) {
+    return next(
+      new GenericError(
+        "Unable to verify otp, Either the request is invalid or otp has been expired",
+        400
+      )
+    );
   }
-  const isOtpVerified = otpModel.checkVerifyToken(verifyToken,otpModel.otpVerifiedToken);
-  if(!isOtpVerified) {
-    return next(new GenericError("Otp is not verified",400));
+  const isOtpVerified = otpModel.checkVerifyToken(
+    verifyToken,
+    otpModel.otpVerifiedToken
+  );
+  if (!isOtpVerified) {
+    return next(new GenericError("Otp is not verified", 400));
   }
   const user = await User.findOne({
-    email: otpModel.userEmail
+    email: otpModel.userEmail,
   });
   user.password = newPassword;
   user.confirmPassword = newConfirmPassword;
@@ -153,7 +164,7 @@ exports.resetPasswordUsingOtp = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     data: {},
-    message : "Password changed Successfully!"
+    message: "Password changed Successfully!",
   });
 });
 
@@ -161,13 +172,16 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
   const currentPassword = req.body.currentPassword;
   const newPassword = req.body.newPassword;
   const newConfirmPassword = req.body.newConfirmPassword;
-  if(!currentPassword || !newConfirmPassword || !newPassword) {
+  if (!currentPassword || !newConfirmPassword || !newPassword) {
     return next(new GenericError("Invalid request body", 400));
   }
   const currentUser = await User.findById(req.user._id).select("+password");
-  const isCorrectPassword = await currentUser.checkPassword(currentPassword, currentUser.password);
-  
-  if(!isCorrectPassword) {
+  const isCorrectPassword = await currentUser.checkPassword(
+    currentPassword,
+    currentUser.password
+  );
+
+  if (!isCorrectPassword) {
     return next(new GenericError("The current password is incorrect", 400));
   }
   currentUser.password = newPassword;
@@ -178,7 +192,6 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     data: {},
-    message : "Password changed Successfully!"
+    message: "Password changed Successfully!",
   });
 });
-
