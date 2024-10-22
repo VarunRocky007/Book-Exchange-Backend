@@ -5,9 +5,10 @@ const authController = require("../controllers/authController");
 const router = express.Router();
 
 router.use(authController.authentication);
+router.get("/search", booksController.searchBook);
 router.post("/add", booksController.addBook);
-router.get("/self-listing", booksController.getMyBookListing);
-router.get("/others-listing", booksController.getOtherBookListing);
+router.get("/me", booksController.getMyBookListing);
+router.get("/other", booksController.getOtherBookListing);
 router.get("/:id", booksController.getBook);
 router.delete("/:id", booksController.deleteBookListing);
 router.get("/", booksController.getAllBookListing);

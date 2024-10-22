@@ -21,6 +21,12 @@ const bookSchema = new mongoose.Schema({
     type: String,
     required: [true, "This is a required field"],
   },
+  location: {
+    type: String,
+  },
+  description: {
+    type: String,
+  },
   owner: {
     type: mongoose.Schema.ObjectId,
     ref: "User",

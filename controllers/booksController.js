@@ -8,6 +8,8 @@ exports.addBook = catchAsync(async (req, res, next) => {
   const genre = req.body.genre;
   const availabilityStatus = req.body.availabilityStatus;
   const condition = req.body.condition;
+  const location = req.body.location;
+  const description = req.body.description;
 
   if (!title || !author || !genre || !availabilityStatus || !condition) {
     return next(new GenericError("Invalid request body!", 400));
@@ -22,6 +24,8 @@ exports.addBook = catchAsync(async (req, res, next) => {
     availabilityStatus: availabilityStatus,
     condition: condition,
     owner: authenticatedUser,
+    location: location,
+    description: description,
   });
 
   const response = {
@@ -31,6 +35,8 @@ exports.addBook = catchAsync(async (req, res, next) => {
     genre: newBook.genre,
     availabilityStatus: newBook.availabilityStatus,
     condition: newBook.condition,
+    location: newBook.location,
+    description: newBook.description,
   };
 
   res.status(201).json({
@@ -156,6 +162,56 @@ exports.updateBook = catchAsync(async (req, res, next) => {
     status: "success",
     data: {
       book: updatedBook,
+    },
+  });
+});
+
+exports.searchBook = catchAsync(async (req, res, next) => {
+  const query = req.query.q;
+  if (query) {
+    const books = await Book.find({
+      $or: [
+        { title: { $regex: query, $options: "i" } },
+        { genre: { $regex: query, $options: "i" } },
+        { location: { $regex: query, $options: "i" } },
+        { author: { $regex: query, $options: "i" } },
+      ],
+    });
+    res.status(200).json({
+      status: "success",
+      data: {
+        books: books,
+      },
+    });
+  }
+  const genre = req.query.genre;
+  const location = req.query.location;
+  const title = req.query.title;
+  const author = req.query.author;
+  const list = [];
+  if (genre) {
+    list.push({ genre: { $regex: genre, $options: "i" } });
+  }
+  if (location) {
+    list.push({ location: { $regex: location, $options: "i" } });
+  }
+  if (title) {
+    list.push({ title: { $regex: title, $options: "i" } });
+  }
+  if (author) {
+    list.push({ author: { $regex: author, $options: "i" } });
+  }
+  if (!list.length) {
+    return next(new GenericError("Invalid query parameters!", 400));
+  }
+  const books = await Book.find({
+    $or: list,
+  });
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      books: books,
     },
   });
 });
