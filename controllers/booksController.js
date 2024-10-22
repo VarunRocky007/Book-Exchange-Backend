@@ -167,8 +167,19 @@ exports.updateBook = catchAsync(async (req, res, next) => {
 });
 
 exports.searchBook = catchAsync(async (req, res, next) => {
+  const page = req.query.page * 1 || 1;
+  const limit = req.query.limit * 1 || 100;
+  const skip = (page - 1) * limit;
   const query = req.query.q;
   if (query) {
+    const totalBooksCount = await Book.find({
+      $or: [
+        { title: { $regex: query, $options: "i" } },
+        { genre: { $regex: query, $options: "i" } },
+        { location: { $regex: query, $options: "i" } },
+        { author: { $regex: query, $options: "i" } },
+      ],
+    }).countDocuments();
     const books = await Book.find({
       $or: [
         { title: { $regex: query, $options: "i" } },
@@ -176,11 +187,20 @@ exports.searchBook = catchAsync(async (req, res, next) => {
         { location: { $regex: query, $options: "i" } },
         { author: { $regex: query, $options: "i" } },
       ],
-    });
+    })
+      .skip(skip)
+      .limit(limit);
     res.status(200).json({
       status: "success",
       data: {
         books: books,
+      },
+      meta: {
+        pagination: {
+          page: page,
+          totalPages: Math.ceil(totalBooksCount / limit),
+          limit: limit,
+        },
       },
     });
   }
@@ -204,14 +224,26 @@ exports.searchBook = catchAsync(async (req, res, next) => {
   if (!list.length) {
     return next(new GenericError("Invalid query parameters!", 400));
   }
+  const totalBooksCount = await Book.find({
+    $or: list,
+  }).countDocuments();
   const books = await Book.find({
     $or: list,
-  });
+  })
+    .skip(skip)
+    .limit(limit);
 
   res.status(200).json({
     status: "success",
     data: {
       books: books,
+    },
+    meta: {
+      pagination: {
+        page: page,
+        totalPages: Math.ceil(totalBooksCount / limit),
+        limit: limit,
+      },
     },
   });
 });
