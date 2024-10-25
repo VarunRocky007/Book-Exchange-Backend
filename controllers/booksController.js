@@ -65,38 +65,79 @@ exports.getBook = catchAsync(async (req, res, next) => {
 });
 
 exports.getOtherBookListing = catchAsync(async (req, res, next) => {
+  const page = req.query.page * 1 || 1;
+  const limit = req.query.limit * 1 || 100;
+  const skip = (page - 1) * limit;
+  const totalBooksCount = await Book.find({
+    owner: { $ne: req.user._id },
+  }).countDocuments();
   const books = await Book.find({
     owner: { $ne: req.user._id },
-  });
+  })
+    .skip(skip)
+    .limit(limit);
 
   res.status(200).json({
     status: "success",
     data: {
       books: books,
+    },
+    meta: {
+      pagination: {
+        page: page,
+        totalPages: Math.ceil(totalBooksCount / limit),
+        limit: limit,
+      },
     },
   });
 });
 
 exports.getAllBookListing = catchAsync(async (req, res, next) => {
-  const books = await Book.find();
+  const page = req.query.page * 1 || 1;
+  const limit = req.query.limit * 1 || 100;
+  const skip = (page - 1) * limit;
+  const totalBooksCount = await Book.find().countDocuments();
+  const books = await Book.find().skip(skip).limit(limit);
 
   res.status(200).json({
     status: "success",
     data: {
       books: books,
     },
+    meta: {
+      pagination: {
+        page: page,
+        totalPages: Math.ceil(totalBooksCount / limit),
+        limit: limit,
+      },
+    },
   });
 });
 
 exports.getMyBookListing = catchAsync(async (req, res, next) => {
+  const page = req.query.page * 1 || 1;
+  const limit = req.query.limit * 1 || 100;
+  const skip = (page - 1) * limit;
+  const totalBooksCount = await Book.find({
+    owner: req.user._id,
+  }).countDocuments();
   const books = await Book.find({
     owner: req.user._id,
-  });
+  })
+    .skip(skip)
+    .limit(limit);
 
   res.status(200).json({
     status: "success",
     data: {
       books: books,
+    },
+    meta: {
+      pagination: {
+        page: page,
+        totalPages: Math.ceil(totalBooksCount / limit),
+        limit: limit,
+      },
     },
   });
 });

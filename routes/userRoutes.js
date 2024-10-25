@@ -10,7 +10,7 @@ router.patch("/reset-password", authController.resetPasswordUsingOtp);
 
 router.use(authController.authentication);
 
-router.patch("/update-password",authController.updatePassword);
-
+router.patch("/update-password", authController.updatePassword);
+router.post("/logout", authController.logout);
 
 module.exports = router;

@@ -1,11 +1,13 @@
 const User = require("../models/userModel");
 const catchAsync = require("../utils/catchAsync");
 const { promisify } = require("util");
+const { createHash } = require("crypto");
 const jwt = require("jsonwebtoken");
 const GenericError = require("../utils/genericError");
 const sendEmail = require("../utils/email");
 const otpEmailTemplate = require("../utils/otpEmailTemplate");
 const Otp = require("../models/otpModel");
+const Session = require("../models/sessionModel");
 const { v4: uuidv4 } = require("uuid");
 const byCrypt = require("bcryptjs");
 
@@ -20,33 +22,47 @@ exports.authentication = catchAsync(async (req, res, next) => {
   if (!token) {
     return next(new GenericError("Unauthorized access!", 401));
   }
+  const encodedToken = createHash("sha256").update(token).digest("hex");
+  const session = await Session.findOne({ sessionToken: encodedToken });
+  if (!session) {
+    return next(new GenericError("Invalid token!", 401));
+  }
   const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
   const user = await User.findById(decoded.id);
   if (!user) {
+    session.delete();
     return next(new GenericError("Invalid token!", 401));
   }
   if (user.checkPasswordChangeTime(decoded.iat)) {
+    session.delete();
     return next(new GenericError("Invalid Session!", 401));
   }
   req.user = user;
+  req.token = token;
   next();
 });
 
 exports.signup = catchAsync(async (req, res) => {
-  const newUser = await User.create({
+  await User.create({
     name: req.body.name,
     email: req.body.email,
     password: req.body.password,
     confirmPassword: req.body.confirmPassword,
   });
 
-  const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_INVALID_AFTER,
-  });
-
   res.status(201).json({
     status: "success",
-    token: token,
+    message: "Account created successfully!",
+  });
+});
+
+exports.logout = catchAsync(async (req, res) => {
+  const encodedToken = createHash("sha256").update(req.token).digest("hex");
+  const session = await Session.findOne({ sessionToken: encodedToken });
+  session.delete();
+  res.status(200).json({
+    status: "success",
+    message: "Logged out successfully!",
   });
 });
 
@@ -66,6 +82,11 @@ exports.login = catchAsync(async (req, res, next) => {
 
   const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_INVALID_AFTER,
+  });
+
+  await Session.create({
+    sessionToken: token,
+    userId: user._id,
   });
 
   res.status(200).json({
