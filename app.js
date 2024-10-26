@@ -3,8 +3,16 @@ const userRouter = require("./routes/userRoutes");
 const bookRouter = require("./routes/bookRoutes");
 const GenericError = require("./utils/genericError");
 const globalErrorHandler = require("./controllers/errorController");
+const cors = require("cors");
+
+const corsOptions = {
+  credentials: true,
+  origin: ["http://localhost:3001"],
+};
 
 const app = express();
+
+app.use(cors(corsOptions));
 
 app.use(express.json());
 
