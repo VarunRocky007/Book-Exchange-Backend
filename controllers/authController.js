@@ -42,6 +42,31 @@ exports.authentication = catchAsync(async (req, res, next) => {
   next();
 });
 
+exports.validateToken = catchAsync(async (req, res, next) => {
+  const token = req.body.token;
+  if (!token) {
+    return next(new GenericError("Invalid Request Body!", 401));
+  }
+  const encodedToken = createHash("sha256").update(token).digest("hex");
+  const session = await Session.findOne({ sessionToken: encodedToken });
+  if (!session) {
+    return {
+      status: "fail",
+      data: {
+        isValid: false,
+      },
+      message: "Invalid token!",
+    };
+  }
+  return {
+    status: "success",
+    data: {
+      isValid: true,
+    },
+    message: "Token is valid",
+  };
+});
+
 exports.signup = catchAsync(async (req, res) => {
   await User.create({
     name: req.body.name,
