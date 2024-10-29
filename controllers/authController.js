@@ -160,7 +160,7 @@ exports.verifyOtp = catchAsync(async (req, res, next) => {
       )
     );
   }
-  const isOtpValid = otpModel.checkOtp(otp, otpModel.otp);
+  const isOtpValid = await otpModel.checkOtp(otp, otpModel.otp);
   if (!isOtpValid) {
     return next(new GenericError("Otp is invalid", 400));
   }
@@ -193,7 +193,7 @@ exports.resetPasswordUsingOtp = catchAsync(async (req, res, next) => {
       )
     );
   }
-  const isOtpVerified = otpModel.checkVerifyToken(
+  const isOtpVerified = await otpModel.checkVerifyToken(
     verifyToken,
     otpModel.otpVerifiedToken
   );
