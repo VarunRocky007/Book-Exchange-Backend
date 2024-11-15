@@ -184,8 +184,9 @@ exports.updateBook = catchAsync(async (req, res, next) => {
   const genre = req.body.genre;
   const availabilityStatus = req.body.availabilityStatus;
   const condition = req.body.condition;
+  const description = req.body.description;
 
-  if (!title || !author || !genre || !availabilityStatus || !condition) {
+  if (!title || !author || !genre || !availabilityStatus || !condition || !description) {
     return next(new GenericError("Invalid request body!", 400));
   }
 
@@ -195,6 +196,7 @@ exports.updateBook = catchAsync(async (req, res, next) => {
     genre: genre,
     availabilityStatus: availabilityStatus,
     condition: condition,
+    description: description,
   });
 
   const updatedBook = await Book.findById(bookId);
